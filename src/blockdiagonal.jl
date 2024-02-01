@@ -105,12 +105,10 @@ function SparseArrays.sparse(B::BlockDiagonal{T}) where {T}
     return sparse(I,J,V)
 end
 
-#
+# Overloading traces, determinants and diagonal blocks
 LinearAlgebra.logdet(B::BlockDiagonal) = sum(logdet, blocks(B))
-LinearAlgebra.diag(B::BlockDiagonal) = map(i -> getindex(B, i, i), 1:minimum(size(B)))
 LinearAlgebra.det(B::BlockDiagonal) = prod(det, blocks(B))
 LinearAlgebra.tr(B::BlockDiagonal) = sum(tr, blocks(B))
-
 
 _iscompatible((A, B)) = size(A, 2) == size(B, 1)
 function check_dim_mul(A, B)
