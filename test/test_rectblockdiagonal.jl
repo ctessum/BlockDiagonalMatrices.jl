@@ -20,7 +20,7 @@ M = div(N,2)
 @test size(B) == size(A)
 @test size(B) == size(S)
 @test B[M,M] == A[M,M]
-@test B[M,M] == S[M,N]
+@test B[M,N] == S[M,N]
 @test B[1,3] == A[1,3]
 @test B[1,3] == S[1,3]
 # Last block, has to be zero up and down
