@@ -1,0 +1,12 @@
+using Test
+using Aqua
+using BlockDiagonalMatrices
+
+Aqua.test_undefined_exports(BlockDiagonalMatrices)
+Aqua.test_project_extras(BlockDiagonalMatrices)
+Aqua.test_unbound_args(BlockDiagonalMatrices)
+# Aqua.test_ambiguities(BlockDiagonalMatrices)
+Aqua.test_deps_compat(BlockDiagonalMatrices)
+Aqua.test_stale_deps(BlockDiagonalMatrices)
+Aqua.test_piracies(BlockDiagonalMatrices)
+Aqua.test_persistent_tasks(BlockDiagonalMatrices)
