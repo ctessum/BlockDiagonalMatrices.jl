@@ -30,11 +30,15 @@ $$
 In addition, the structure also result in easy computation of traces and determinants as
 
 $$
-\begin{aligned}
-\text{tr}\left(\mathbf{B}\right) &= \sum_{i=1}^n\text{tr}\left(\mathbf{B}_i\right)\\
-\text{det}\left(\mathbf{B}\right) &= \prod_{i=1}^n\text{det}\left(\mathbf{B}_i\right)\\
-\text{logdet}\left(\mathbf{B}\right) &= \sum_{i=1}^n\text{log}\left(\text{det}\left(\mathbf{B}_i\right)\right)
-\end{aligned}
+\text{tr}\left(\mathbf{B}\right) = \sum_{i=1}^n\text{tr}\left(\mathbf{B}_i\right)\\
+$$
+
+$$
+\text{det}\left(\mathbf{B}\right) = \prod_{i=1}^n\text{det}\left(\mathbf{B}_i\right)\\
+$$
+
+$$
+\text{logdet}\left(\mathbf{B}\right) = \sum_{i=1}^n\text{log}\left(\text{det}\left(\mathbf{B}_i\right)\right)
 $$
 
 Furthermore factorizations, such as the eigenvalue decomposition, can be computed separated as
