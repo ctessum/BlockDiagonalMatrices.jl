@@ -5,6 +5,7 @@
 
 ## Introduction
 A block diagonal matrix is a [square matrix](https://en.wikipedia.org/wiki/Block_matrix#Block_diagonal_matrices) given by
+
 $$
 \mathbf{B} = 
 \begin{bmatrix}
@@ -65,9 +66,7 @@ $$
 \end{bmatrix}^{-1}
 $$
 
-
-### 
-The package also includes some operations for rectangular block matrices using the ```RectangularBlockDiagonal``` format.
+The package also includes some operations for rectangular block matrices.
 
 ## Examples
 ### ```BlockDiagonal```
