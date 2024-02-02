@@ -101,12 +101,12 @@ function SparseArrays.sparse(B::RectangularBlockDiagonal{T}) where {T}
 end
 
 function LinearAlgebra.mul!(y::AbstractVecOrMat{T}, B::RectangularBlockDiagonal{T,V}, x::AbstractVecOrMat{T}) where {T,V}
-    @floop @inbounds  for (block_id, block) in enumerate(blocks(B))
+    @floop @inbounds for (block_id, block) in enumerate(blocks(B))
         block_row_start = B.cumulative_row_indices[block_id] + 1
         block_row_end   = B.cumulative_row_indices[block_id + 1]
         block_col_start = B.cumulative_col_indices[block_id] + 1
         block_col_end   = B.cumulative_col_indices[block_id + 1]
-        mul!(selectdim(y,1,block_row_start:block_row_end), block, selectdim(x,1,block_col_start:block_col_end))
+        @views mul!(y[block_row_start:block_row_end,:], block, x[block_col_start:block_col_end,:])
     end
     return y
 end

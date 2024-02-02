@@ -123,7 +123,7 @@ function LinearAlgebra.mul!(y::AbstractVecOrMat{T}, B::BlockDiagonal{T,V}, x::Ab
     @floop @inbounds  for (block_id, block) in enumerate(blocks(B))
         block_start = B.cumulative_indices[block_id] + 1
         block_end   = B.cumulative_indices[block_id + 1]
-        mul!(selectdim(y,1,block_start:block_end), block, selectdim(x,1,block_start:block_end))
+        @views mul!(y[block_start:block_end,:], block, x[block_start:block_end,:])
     end
     return y
 end
@@ -133,7 +133,9 @@ function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractVecOrMat)
     @floop @inbounds for (block_id,block) in enumerate(blocks(B))
         block_start = B.cumulative_indices[block_id] + 1
         block_end   = B.cumulative_indices[block_id + 1]
-        y[block_start:block_end,:] = block\selectdim(x,1,block_start:block_end)
+        # F = cholesky(block)
+        F = factorize(block)
+        @views ldiv!(y[block_start:block_end,:], F, x[block_start:block_end,:])
     end
     return y
 end
@@ -153,10 +155,20 @@ function LinearAlgebra.eigen(B::BlockDiagonal)
     @floop @inbounds for (block_id, block) in enumerate(blocks(B))
         E = eigen(block)
         vectors[block_id] .= E.vectors
-        # push!(vectors,E.vectors)
         block_start = B.cumulative_indices[block_id] + 1
         block_end   = B.cumulative_indices[block_id + 1]
         values[block_start:block_end] = E.values
     end
     return Eigen(values,BlockDiagonal(vectors))
+end
+
+
+## Functions
+# Idea to include matrix functions?
+for func in (:log, :sqrt, :sin, :tan, :cos, :sinh, :tanh)
+    @eval begin
+        function (Base.$func)(B::BlockDiagonal)
+            return BlockDiagonal([($func)(block) for block in blocks(B)])
+        end
+    end
 end
