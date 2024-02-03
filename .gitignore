@@ -2,3 +2,7 @@
 .DS_Store
 /test/Manifest.toml
 examples/timings.jl
+src/old_rectangularblockdiagonal.jl
+src/old_blockdiagonal.jl
+test/old_test_squareblocks.jl
+test/old_test_rectangularblocks.jl
