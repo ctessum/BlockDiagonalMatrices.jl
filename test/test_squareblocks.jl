@@ -57,6 +57,9 @@ for T in [Float32,Float64,ComplexF32, ComplexF64]
             @test B[1,1] == SB[1,1]
             @test B[end,end] == SB[end,end]
 
+            @test transpose(B) == transpose(SB)
+            @test adjoint(B) == adjoint(SB)
+
             # Test basic operations
             for test_block_type in test_block_types
                 # println("$(test_block_type)")
@@ -77,6 +80,10 @@ for T in [Float32,Float64,ComplexF32, ComplexF64]
                 @test A'*B' ≈ Ad'*Bd'
                 @test  A*B' ≈  Ad*Bd'
                 @test A'*B  ≈ Ad'*Bd
+
+                @test A\B ≈ Ad\Bd
+                @test A'\B ≈ Ad'\Bd
+                @test A\B' ≈ Ad\Bd'
 
                 @test A*(-B) ≈ Ad*(-Bd)
                 @test A'*(-B') ≈ Ad'*(-Bd')

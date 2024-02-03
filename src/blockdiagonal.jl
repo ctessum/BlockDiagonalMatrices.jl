@@ -191,7 +191,9 @@ function LinearAlgebra.:\(B::BlockDiagonal, C::BlockDiagonal)
     W = [zeros(promote_type(eltype(B),eltype(C)),size(B_block,1), size(C_block,2)) for (B_block, C_block) in zip(blocks(B),blocks(C))]
     @floop @inbounds for (block_id, (B_block, C_block)) in enumerate(zip(blocks(B),blocks(C)))
         L = factorize(B_block)
-        @views ldiv!(W[block_id], L , C_block)
+        # ldiv! have problems with some sparse arrays
+        @views W[block_id] = L \ C_block
+        # @views ldiv!(W[block_id], L , C_block)
     end
     is_block_square = all(block -> _is_square(block), W)
     return BlockDiagonal(W,B.block_row_indices, C.block_col_indices, is_block_square)
