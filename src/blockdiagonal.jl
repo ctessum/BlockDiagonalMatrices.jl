@@ -1,37 +1,15 @@
 """
     BlockDiagonal
 
-A (square) block-diagonal matrix
-    - Following standard notation https://en.wikipedia.org/wiki/Block_matrix)
+A block-diagonal matrix
 """
-struct BlockDiagonal{T, V <: AbstractMatrix{T}} <: AbstractMatrix{T}
+struct BlockDiagonal{T, V <: AbstractMatrix{T}} <: AbstractBlockDiagonal{T}
     blocks::Vector{V}
-    cumulative_indices::Vector{Int}
+    block_row_indices::Vector{Int}
+    block_col_indices::Vector{Int}
+    is_block_square::Bool
 end
 
-"""
-    BlockDiagonal(blocks)
-
-Creates a (square) block-diagonal matrix
-"""
-function BlockDiagonal(blocks::Vector{V}) where {T, V <: AbstractMatrix{T}}
-    cumulative_indices = cumulative_square_indices(blocks)
-    return BlockDiagonal{T,V}(blocks,cumulative_indices)
-end
-
-"""
-    blocks(B::BlockDiagonal)
-
-Return the on-diagonal blocks of B.
-"""
-blocks(B::BlockDiagonal) = B.blocks
-
-"""
-    size(B::BlockDiagonal)
-
-Gets the size of the BlockDiagonal matrix using the cumulative indices
-"""
-Base.size(B::BlockDiagonal) = (B.cumulative_indices[end], B.cumulative_indices[end])
 
 """
     cumulative_square_indices(V;dim=1)
@@ -44,6 +22,30 @@ function cumulative_square_indices(V;dim=1)
     return [0; cumsum(block_dim_size)]
 end
 
+
+"""
+    BlockDiagonal(blocks)
+
+Creates a (square) block-diagonal matrix
+"""
+function BlockDiagonal(blocks::Vector{V}) where {T, V <: AbstractMatrix{T}}
+    block_row_indices = cumulative_square_indices(blocks)
+    block_col_indices = cumulative_square_indices(blocks,dim=2)
+    is_block_square = all(block -> _is_square(block), blocks)
+    return BlockDiagonal{T,V}(blocks,block_row_indices,block_col_indices,is_block_square)
+end
+
+
+"""
+    size(B::BlockDiagonal)
+
+Gets the size of the BlockDiagonal matrix using the cumulative indices
+"""
+Base.size(B::BlockDiagonal) = (B.block_row_indices[end], B.block_col_indices[end])
+
+# Helper function. Extracts indicies and information about square blocks
+_extract_block_information(B::BlockDiagonal) = B.block_row_indices, B.block_col_indices, B.is_block_square
+
 """
     getindex(B::BlockDiagonal{T},i::Integer,j::Integer)
 
@@ -51,19 +53,21 @@ Grabs indexing sorting the cumulative indicies of the matrix
  - Should scale O(log(n)), as compared to O(n) of the implementation in BlockDiagonals.jl
 """
 function Base.getindex(B::BlockDiagonal{T},i::Integer,j::Integer) where {T}
-    indicies = B.cumulative_indices
+    row_indicies = B.block_row_indices
+    col_indicies = B.block_col_indices
     # Find row-block
-    ls = searchsorted(indicies, i)
+    ls = searchsorted(row_indicies, i)
     if ls.start == ls.stop
         block_no = ls.start - 1
     else
         block_no = ls.stop
     end
     # Find-block - Return 0 if now in column block
-    if j ∈ (indicies[block_no] + 1):indicies[block_no+1]
-        return blocks(B)[block_no][i - indicies[block_no], j - indicies[block_no]]
+    # if j ∈ (col_indicies[ls.stop] + 1):col_indicies[ls.start]
+    if j ∈ (col_indicies[block_no] + 1):col_indicies[block_no+1]
+        return blocks(B)[block_no][i - row_indicies[block_no], j - col_indicies[block_no]]
     else
-        return zero(T)
+        return zero(eltype(B))
     end
 end
 
@@ -74,11 +78,12 @@ Converts a BlockDiagonal matrix into dense matrix
 """
 function Base.Matrix(B::BlockDiagonal{T}) where {T}
     A = zeros(T, size(B))
-
     @floop @inbounds for (block_id,block) in enumerate(blocks(B))
-        block_start = B.cumulative_indices[block_id] + 1
-        block_end   = B.cumulative_indices[block_id + 1]
-        A[block_start:block_end, block_start:block_end] .= block
+        block_row_start = B.block_row_indices[block_id] + 1
+        block_row_end   = B.block_row_indices[block_id + 1]
+        block_col_start = B.block_col_indices[block_id] + 1
+        block_col_end   = B.block_col_indices[block_id + 1]
+        A[block_row_start:block_row_end, block_col_start:block_col_end] = block
     end
     return A
 end
@@ -89,86 +94,118 @@ end
 Converts a BlockDiagonal matrix into sparse matrix
 """
 function SparseArrays.sparse(B::BlockDiagonal{T}) where {T}
-    nnz = sum(diff(B.cumulative_indices).^2)
+    nnz = sum(block -> prod(size(block)), blocks(B))
     I = zeros(Int, nnz)
     J = zeros(Int, nnz)
-    V = zeros(nnz)
-    block_sizes = diff(B.cumulative_indices)
-    indices = [0; cumsum(block_sizes.^2)]
+    V = zeros(T,nnz)
+    block_row_sizes = diff(B.block_row_indices)
+    block_col_sizes = diff(B.block_col_indices)
+    linear_indices = [0; cumsum(block_row_sizes .* block_col_sizes)]
     @floop @inbounds for (block_id,block) in enumerate(blocks(B))
-        idx       = (indices[block_id] + 1):indices[block_id + 1]
-        block_idx = repeat((B.cumulative_indices[block_id] + 1):B.cumulative_indices[block_id + 1], inner=(1,block_sizes[block_id]))
-        I[idx] = block_idx[:]
-        J[idx] = block_idx'[:]
+        idx = (linear_indices[block_id] + 1):linear_indices[block_id + 1]
+        I[idx] = repeat((B.block_row_indices[block_id] + 1):B.block_row_indices[block_id + 1], outer=block_col_sizes[block_id])
+        J[idx] = repeat((B.block_col_indices[block_id] + 1):B.block_col_indices[block_id + 1], inner=block_row_sizes[block_id])
         V[idx] = block[:]
     end
-    return sparse(I,J,V)
+    return SparseArrays.sparse(I,J,V)
 end
-
-# Overloading traces, determinants and diagonal blocks
-LinearAlgebra.logdet(B::BlockDiagonal) = sum(logdet, blocks(B))
-LinearAlgebra.det(B::BlockDiagonal) = prod(det, blocks(B))
-LinearAlgebra.tr(B::BlockDiagonal) = sum(tr, blocks(B))
-
-_iscompatible((A, B)) = size(A, 2) == size(B, 1)
-function check_dim_mul(A, B)
-    _iscompatible((A, B)) ||
-        throw(DimensionMismatch("second dimension of left factor, $(size(A, 2)), " *
-            "does not match first dimension of right factor, $(size(B, 1))"))
-    return nothing
-end
-
 
 function LinearAlgebra.mul!(y::AbstractVecOrMat{T}, B::BlockDiagonal{T,V}, x::AbstractVecOrMat{T}) where {T,V}
-    @floop @inbounds  for (block_id, block) in enumerate(blocks(B))
-        block_start = B.cumulative_indices[block_id] + 1
-        block_end   = B.cumulative_indices[block_id + 1]
-        @views mul!(y[block_start:block_end,:], block, x[block_start:block_end,:])
+    @floop @inbounds for (block_id, block) in enumerate(blocks(B))
+        block_row_start = B.block_row_indices[block_id] + 1
+        block_row_end   = B.block_row_indices[block_id + 1]
+        block_col_start = B.block_col_indices[block_id] + 1
+        block_col_end   = B.block_col_indices[block_id + 1]
+        @views mul!(y[block_row_start:block_row_end,:], block, x[block_col_start:block_col_end,:])
     end
     return y
 end
+
+
+LinearAlgebra.logdet(B::BlockDiagonal) = B.is_block_square ? sum(logdet, blocks(B)) : error("Not all blocks are square")
+LinearAlgebra.det(B::BlockDiagonal) = B.is_block_square ? prod(det, blocks(B)) : error("Not all blocks are square")
+LinearAlgebra.tr(B::BlockDiagonal) = B.is_block_square ? sum(tr, blocks(B)) : sum(diag(B))
+
+
+Base.transpose(B::BlockDiagonal) = BlockDiagonal([transpose(block) for block in blocks(B)], B.block_col_indices, B.block_row_indices, B.is_block_square)
+Base.adjoint(B::BlockDiagonal) = BlockDiagonal([transpose(conj(block)) for block in blocks(B)], B.block_col_indices, B.block_row_indices, B.is_block_square)
+
+
+Base.:*(scalar::Number, B::BlockDiagonal) = BlockDiagonal(scalar * blocks(B), _extract_block_information(B)...)
+Base.:*(B::BlockDiagonal,scalar::Number)  = BlockDiagonal(scalar * blocks(B), _extract_block_information(B)...)
+
+
+Base.:-(B::BlockDiagonal) = BlockDiagonal(-blocks(B), _extract_block_information(B)...)
+Base.:+(B::BlockDiagonal) = BlockDiagonal(blocks(B), _extract_block_information(B)...)
+
+
+function Base.:-(B::BlockDiagonal, C::BlockDiagonal)
+    if !((B.block_row_indices == C.block_row_indices) && (B.block_col_indices == C.block_col_indices))
+        throw(DimensionMismatch("The block sizes of A and B are not compatible"))
+    end
+    return BlockDiagonal(blocks(B) - blocks(C), _extract_block_information(B)...)
+end
+function Base.:+(B::BlockDiagonal, C::BlockDiagonal)
+    if !((B.block_row_indices == C.block_row_indices) && (B.block_col_indices == C.block_col_indices))
+        throw(DimensionMismatch("The block sizes of A and B are not compatible"))
+    end
+    return BlockDiagonal(blocks(B) + blocks(C), _extract_block_information(B)...)
+end
+function Base.:*(B::BlockDiagonal,C::BlockDiagonal)
+    if !(B.block_col_indices == C.block_row_indices)
+        throw(DimensionMismatch("The block sizes of A and B are not compatible"))
+    end
+    W = [zeros(promote_type(eltype(B),eltype(C)),size(B_block,1), size(C_block,2)) for (B_block, C_block) in zip(blocks(B),blocks(C))]
+    @floop @inbounds for (block_id, (B_block, C_block)) in enumerate(zip(blocks(B),blocks(C)))
+        @views mul!(W[block_id], B_block, C_block)
+    end
+    is_block_square = all(block -> _is_square(block), W)
+    return BlockDiagonal(W,B.block_row_indices, C.block_col_indices, is_block_square)
+end
+
 
 function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractVecOrMat)
-    y = similar(x)
+    if !B.is_block_square
+        throw(DimensionMismatch("Not all blocks are square. Use a sparse format instead i.e. sparse(B)."))
+    end
+    y = zeros(promote_type(eltype(B),eltype(x)),size(x))
     @floop @inbounds for (block_id,block) in enumerate(blocks(B))
-        block_start = B.cumulative_indices[block_id] + 1
-        block_end   = B.cumulative_indices[block_id + 1]
+        block_start = B.block_row_indices[block_id] + 1
+        block_end   = B.block_row_indices[block_id + 1]
         # F = cholesky(block)
-        F = factorize(block)
-        @views ldiv!(y[block_start:block_end,:], F, x[block_start:block_end,:])
+        # F = factorize(block)
+        # Some problems with ldiv! when using sparse blocks
+        # @views ldiv!(y[block_start:block_end,:], F, x[block_start:block_end,:])
+        @views y[block_start:block_end,:] = block \ x[block_start:block_end,:]
     end
     return y
 end
 
-"""
-    eigen(B::BlockDiagonal)
-
-Computes the eigen decomposition of `B` by using that it is equal to a block matrix where
-each block is the eigen decomposition of the corresponding block of `B`.
-
-Note that the eigen vectors are not ordered w.r.t to the eigenvalues.
-"""
-function LinearAlgebra.eigen(B::BlockDiagonal)
-    vectors = [zeros(eltype(B),size(block)) for block in blocks(B)]
-    # vectors = Vector{typeof(zeros(eltype(B),size(block)))}()
-    values = zeros(eltype(B),B.cumulative_indices[end])
-    @floop @inbounds for (block_id, block) in enumerate(blocks(B))
-        E = eigen(block)
-        vectors[block_id] .= E.vectors
-        block_start = B.cumulative_indices[block_id] + 1
-        block_end   = B.cumulative_indices[block_id + 1]
-        values[block_start:block_end] = E.values
+function LinearAlgebra.:\(B::BlockDiagonal, C::BlockDiagonal)
+    if !(B.block_col_indices == C.block_row_indices)
+        throw(DimensionMismatch("The block sizes of A and B are not compatible"))
     end
-    return Eigen(values,BlockDiagonal(vectors))
+    if !B.is_block_square
+        throw(DimensionMismatch("Not all blocks are square. Use a sparse format instead i.e. sparse(B)."))
+    end
+    W = [zeros(promote_type(eltype(B),eltype(C)),size(B_block,1), size(C_block,2)) for (B_block, C_block) in zip(blocks(B),blocks(C))]
+    @floop @inbounds for (block_id, (B_block, C_block)) in enumerate(zip(blocks(B),blocks(C)))
+        L = factorize(B_block)
+        @views ldiv!(W[block_id], L , C_block)
+    end
+    is_block_square = all(block -> _is_square(block), W)
+    return BlockDiagonal(W,B.block_row_indices, C.block_col_indices, is_block_square)
 end
-
 
 ## Functions
 # Idea to include matrix functions?
-for func in (:log, :sqrt, :sin, :tan, :cos, :sinh, :tanh)
-    @eval begin
-        function (Base.$func)(B::BlockDiagonal)
-            return BlockDiagonal([($func)(block) for block in blocks(B)])
-        end
-    end
-end
+# for func in (:log, :sqrt, :sin, :tan, :cos, :sinh, :tanh)
+#     @eval begin
+#         function (Base.$func)(B::BlockDiagonal)
+#             if !B.is_block_square
+#                 error("Matrix not block square")
+#             end
+#             return BlockDiagonal([($func)(block) for block in blocks(B)], _extract_block_information(B)...)
+#         end
+#     end
+# end
