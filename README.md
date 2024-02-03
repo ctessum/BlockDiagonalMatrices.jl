@@ -4,7 +4,7 @@
 
 
 ## Introduction
-A block diagonal matrix is a [square matrix](https://en.wikipedia.org/wiki/Block_matrix#Block_diagonal_matrices) given by
+A block diagonal matrix is most often given as a [square matrix](https://en.wikipedia.org/wiki/Block_matrix#Block_diagonal_matrices) 
 
 $$
 \mathbf{B} = 
@@ -16,7 +16,7 @@ $$
 \end{bmatrix} \in \mathbf{R}^{n\times n}
 $$
 
-where each block, given as $\mathbf{B}_i$, is also square. In simple terms this matrix structure represents a system of linear equations that are block separated. A result of the separation is that the system is only solvable (invertible) when each separated block is solvable. Unsurprisingly the block diagonal matrix system can in this case be solved by solving each of the block systems separately
+where each block, given as $\mathbf{B}_i$, is also square. Note that this package extends the definition to include non-square blocks (However, not much is gained here as compared to using a sparse format). In simple terms this matrix structure represents a system of linear equations that are block separated. A result of the separation is that the system is only solvable (invertible) when each separated block is solvable. Unsurprisingly the block diagonal matrix system can in this case be solved by solving each of the block systems separately
 
 $$
 \mathbf{B}^{-1} = 
@@ -66,10 +66,8 @@ $$
 \end{bmatrix}^{-1}
 $$
 
-The package also includes some operations for rectangular block matrices.
-
 ## Examples
-### ```BlockDiagonal```
+### Square blocks
 First we define a block diagonal matrix with $n$ blocks of size $3\times3$.
 ```julia
 n = 100 # Number fo blocks
@@ -92,15 +90,14 @@ det(B)
 logdet(B)
 ```
 
-### ```RectangularBlockDiagonal```
-A rectangular block diagonal matrix can be created similarly as
+### Non-square blocks
+The blocks can also be non-square. However, in this case fast traces, determinants, etc. are not available and the code will throw an error.
 ```julia
 # Number of blocks
 n = 100 
 # Creating n
-B = RectangularBlockDiagonal([rand(rand(1:3),rand(1:3)) for i = 1:n])
+B = rBlockDiagonal([rand(rand(1:3),rand(1:3)) for i = 1:n])
 ```
-Currently there is only simple operations available for this matrix types.
 
 
 ## Related packages
