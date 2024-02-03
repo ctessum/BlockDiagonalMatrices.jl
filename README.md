@@ -1,6 +1,7 @@
 # BlockDiagonalMatrices
 
-[![Build Status](https://github.com/mipals/BlockDiagonalMatrices.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mipals/BlockDiagonalMatrices.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://github.com/mipals/BlockDiagonalMatrices.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mipals/BlockDiagonalMatrices.jl/actions/workflows/CI.yml?query=branch%3Amain) 
+[![Coverage](https://codecov.io/gh/mipals/BlockDiagonalMatrices.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/mipals/BlockDiagonalMatrices.jl)
 
 
 ## Introduction
@@ -101,4 +102,4 @@ B = rBlockDiagonal([rand(rand(1:3),rand(1:3)) for i = 1:n])
 
 
 ## Related packages
-[BlockDiagonals.jl](https://github.com/JuliaArrays/BlockDiagonals.jl): A pretty general package with some overall nice features (including what looks like auto-diff related stuff). The flaw in the design of the package is, however, that it only stores the blocks and no global indices. As the computations are all serial by nature. Furthermore, things like `getindex` runs in linearly as it always need to start the first block and the looping forward.
+[BlockDiagonals.jl](https://github.com/JuliaArrays/BlockDiagonals.jl): A pretty general package with some overall nice features (including what looks like auto-diff related stuff). The flaw in the design of the package is, however, that it only stores the blocks and no global indices. As such the computations are all serial by nature. Furthermore, things like `getindex` runs in linearly as it always need to start the first block and the looping forward.
