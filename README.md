@@ -97,7 +97,7 @@ The blocks can also be non-square. However, in this case fast traces, determinan
 # Number of blocks
 n = 100 
 # Creating n
-B = rBlockDiagonal([rand(rand(1:3),rand(1:3)) for i = 1:n])
+B = BlockDiagonal([rand(rand(1:3),rand(1:3)) for i = 1:n])
 ```
 
 
