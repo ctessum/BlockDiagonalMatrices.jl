@@ -45,6 +45,7 @@ Base.size(B::BlockDiagonal) = (B.block_row_indices[end], B.block_col_indices[end
 
 # Helper function. Extracts indicies and information about square blocks
 _extract_block_information(B::BlockDiagonal) = B.block_row_indices, B.block_col_indices, B.is_block_square
+_extract_transpose_block_information(B::BlockDiagonal) = B.block_col_indices, B.block_row_indices, B.is_block_square
 
 """
     getindex(B::BlockDiagonal{T},i::Integer,j::Integer)
@@ -117,12 +118,44 @@ function _create_inverse_blocks(blocks)
     end
     return W
 end
+"""
+    inv(B::BlockDiagonal)
+
+Inverse of a block diagonal matrix by inversion of each block.
+Returns a `BlockDiagonal` of same size of `B`.
+"""
 function Base.inv(B::BlockDiagonal)
     return BlockDiagonal([inv(Matrix(block)) for block in blocks(B)], _extract_block_information(B)...)
 end
+"""
+    inv_sparse(B::BlockDiagonal)
+
+Inverse of a block diagonal matrix by inversion of each block.
+Returns a sparse matrix of same size of `B`.
+"""
 function inv_sparse(B::BlockDiagonal{T}) where {T}
     return sparse(inv(B))
 end
+"""
+    \(B::BlockDiagonal, x::AbstractSparseArray)
+
+Solving B\A by the means of direct inversion of the blocks `B` casted into a sparse format and then performing the sparse product `B^{-1}x`.
+Returns a sparse matrix.
+"""
+function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractSparseArray)
+    # NB this based on direct inversion of blocks - Mqaybe not stable?
+    return inv_sparse(B)*x
+end
+"""
+    *(B::BlockDiagonal, x::AbstractSparseArray)
+
+Computing B*A by casting `B` into a sparse format and then performing the sparse product B*x
+Returns a sparse matrix.
+"""
+function LinearAlgebra.:*(B::BlockDiagonal, x::AbstractSparseArray)
+    return sparse(B)*x
+end
+
 
 function LinearAlgebra.mul!(y::AbstractVecOrMat{T}, B::BlockDiagonal{T,V}, x::AbstractVecOrMat{T}) where {T,V}
     @floop @inbounds for (block_id, block) in enumerate(blocks(B))
@@ -134,9 +167,6 @@ function LinearAlgebra.mul!(y::AbstractVecOrMat{T}, B::BlockDiagonal{T,V}, x::Ab
     end
     return y
 end
-
-
-
 
 
 function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractVecOrMat)
@@ -166,8 +196,8 @@ function LinearAlgebra.tr(B::BlockDiagonal)
     end
 end
 
-Base.transpose(B::BlockDiagonal) = BlockDiagonal([transpose(block) for block in blocks(B)], B.block_col_indices, B.block_row_indices, B.is_block_square)
-Base.adjoint(B::BlockDiagonal) = BlockDiagonal([transpose(conj(block)) for block in blocks(B)], B.block_col_indices, B.block_row_indices, B.is_block_square)
+Base.transpose(B::BlockDiagonal) = BlockDiagonal([transpose(block) for block in blocks(B)], _extract_transpose_block_information(B)...)
+Base.adjoint(B::BlockDiagonal) = BlockDiagonal([transpose(conj(block)) for block in blocks(B)], _extract_transpose_block_information(B)...)
 
 
 Base.:*(scalar::Number, B::BlockDiagonal) = BlockDiagonal(scalar * blocks(B), _extract_block_information(B)...)
@@ -233,15 +263,6 @@ end
 #         end
 #     end
 # end
-
-
-function LinearAlgebra.:*(B::BlockDiagonal, x::AbstractSparseArray)
-    return sparse(B)*x
-end
-function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractSparseArray)
-    # NB this based on direct inversion of blocks - Mqaybe not stable?
-    return inv_sparse(B)*x
-end
 
 
 ### First attempts at making solove with sparse rhs faster
