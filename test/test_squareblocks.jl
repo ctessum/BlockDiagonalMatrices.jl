@@ -60,6 +60,14 @@ for T in [Float32,Float64,ComplexF32, ComplexF64]
             @test transpose(B) == transpose(SB)
             @test adjoint(B) == adjoint(SB)
 
+            @test B\SB ≈ Matrix(B)\Matrix(SB)
+
+            C = BlockDiagonal([block for block in reverse(B.blocks)])
+            @test_throws DimensionMismatch B + C
+            @test_throws DimensionMismatch B - C
+            @test_throws DimensionMismatch B * C
+            @test_throws DimensionMismatch B \ C
+
             # Test basic operations
             for test_block_type in test_block_types
                 # println("$(test_block_type)")

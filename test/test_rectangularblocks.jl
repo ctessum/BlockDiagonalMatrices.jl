@@ -44,6 +44,8 @@ for T in [Float32,Float64,ComplexF32, ComplexF64]
             @test B[1,1] == SB[1,1]
             @test B[end,end] == SB[end,end]
 
+            @test_throws DimensionMismatch tr(B)
+
             # Test basic operations
             for test_block_type in test_block_types
                 # println("$(test_block_type)")
@@ -63,6 +65,8 @@ for T in [Float32,Float64,ComplexF32, ComplexF64]
 
                 @test A*(2B) ≈ Ad*(2Bd)
                 @test (2A)*B ≈ (2Ad)*Bd
+
+                @test_throws DimensionMismatch A \ B
 
             end
 
