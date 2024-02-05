@@ -113,12 +113,12 @@ end
 function _create_inverse_blocks(blocks)
     W = similar(blocks)
     @floop @inbounds for (block_id,block) in enumerate(blocks)
-        W[block_id] = inv(block)
+        W[block_id] = inv(Matrix(block))
     end
     return W
 end
 function Base.inv(B::BlockDiagonal)
-    return BlockDiagonal([inv(block) for block in blocks(B)], _extract_block_information(B)...)
+    return BlockDiagonal([inv(Matrix(block)) for block in blocks(B)], _extract_block_information(B)...)
 end
 function inv_sparse(B::BlockDiagonal{T}) where {T}
     return sparse(inv(B))
