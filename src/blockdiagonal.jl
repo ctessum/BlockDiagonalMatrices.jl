@@ -137,9 +137,9 @@ function inv_sparse(B::BlockDiagonal{T}) where {T}
     return sparse(inv(B))
 end
 """
-    \(B::BlockDiagonal, x::AbstractSparseArray)
+    \\(B::BlockDiagonal, x::AbstractSparseArray)
 
-Solving B\A by the means of direct inversion of the blocks `B` casted into a sparse format and then performing the sparse product `B^{-1}x`.
+Solving B\\A by the means of direct inversion of the blocks `B` casted into a sparse format and then performing the sparse product `B^{-1}x`.
 Returns a sparse matrix.
 """
 function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractSparseArray)
