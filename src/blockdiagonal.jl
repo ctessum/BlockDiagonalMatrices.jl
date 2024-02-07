@@ -149,7 +149,7 @@ end
 """
     *(B::BlockDiagonal, x::AbstractSparseArray)
 
-Computing B*A by casting `B` into a sparse format and then performing the sparse product B*x
+Computing B*A by casting `B` into a sparse format and then performing the sparse product B*x.
 Returns a sparse matrix.
 """
 function LinearAlgebra.:*(B::BlockDiagonal, x::AbstractSparseArray)
@@ -275,7 +275,7 @@ end
 #     @inbounds for (block_id, block) in enumerate(B.blocks)
 #         block_idx = B.block_row_indices[block_id] + 1:B.block_row_indices[block_id + 1]
 #         xview = @view x[block_idx,:]
-#         idx = unique(sort!(vcat([xview[i,:].nzind for i in 1:size(xview,1)]...)))
+#         idx = unique(sort!(vcat([xview[i,:].nzind for i in 1:size(xview,1)]...))) # <-- Maybe make a structure for `x` where you save the non-zero block structure outside?
 #         v = block*xview[:,idx]
 #         # Probably not good when running @floops
 #         append!(Ii,repeat(block_idx,length(idx)))
