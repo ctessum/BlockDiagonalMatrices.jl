@@ -1,7 +1,8 @@
 """
     BlockDiagonal
 
-A block-diagonal matrix
+A block-diagonal matrix.
+Contains the blocks (`blocks`), their global position in the matrix (`block_row_indices`, `block_col_indices`), and information about if all blocks are square (`is_block_square`).
 """
 struct BlockDiagonal{T, V <: AbstractMatrix{T}} <: AbstractBlockDiagonal{T}
     blocks::Vector{V}
@@ -26,7 +27,7 @@ end
 """
     BlockDiagonal(blocks)
 
-Creates a (square) block-diagonal matrix
+Creates a block-diagonal matrix given a vector of the `blocks`.
 """
 function BlockDiagonal(blocks::Vector{V}) where {T, V <: AbstractMatrix{T}}
     block_row_indices = cumulative_square_indices(blocks)
@@ -39,7 +40,7 @@ end
 """
     size(B::BlockDiagonal)
 
-Gets the size of the BlockDiagonal matrix using the cumulative indices
+Gets the size of the BlockDiagonal matrix using the cumulative indices.
 """
 Base.size(B::BlockDiagonal) = (B.block_row_indices[end], B.block_col_indices[end])
 
@@ -63,7 +64,7 @@ function Base.getindex(B::BlockDiagonal{T},i::Integer,j::Integer) where {T}
     else
         block_no = ls.stop
     end
-    # Find-block - Return 0 if not in column block
+    # Find corresponding column-block - Return 0 if `j` is not contained in the column block
     if j ∈ (col_indicies[block_no] + 1):col_indicies[block_no+1]
         return blocks(B)[block_no][i - row_indicies[block_no], j - col_indicies[block_no]]
     else
@@ -74,7 +75,7 @@ end
 """
     Matrix(B::BlockDiagonal{T})
 
-Converts a BlockDiagonal matrix into dense matrix
+Converts a BlockDiagonal matrix into dense matrix.
 """
 function Base.Matrix(B::BlockDiagonal{T}) where {T}
     A = zeros(T, size(B))
@@ -91,7 +92,7 @@ end
 """
     sparse(B::BlockDiagonal{T})
 
-Converts a BlockDiagonal matrix into sparse matrix
+Converts a BlockDiagonal matrix into sparse matrix.
 """
 function SparseArrays.sparse(B::BlockDiagonal{T}) where {T}
     nnz = sum(block -> prod(size(block)), blocks(B))
@@ -107,17 +108,17 @@ function SparseArrays.sparse(B::BlockDiagonal{T}) where {T}
         J[idx] = repeat((B.block_col_indices[block_id] + 1):B.block_col_indices[block_id + 1], inner=block_row_sizes[block_id])
         V[idx] = block[:]
     end
-    return SparseArrays.sparse(I,J,V)
+    return sparse(I,J,V)
 end
 
 # Does not seem to be faster than [inv(block) for block in blocks(B)]
-function _create_inverse_blocks(blocks)
-    W = similar(blocks)
-    @floop @inbounds for (block_id,block) in enumerate(blocks)
-        W[block_id] = inv(Matrix(block))
-    end
-    return W
-end
+# function _create_inverse_blocks(blocks)
+#     W = similar(blocks)
+#     @floop @inbounds for (block_id,block) in enumerate(blocks)
+#         W[block_id] = inv(Matrix(block))
+#     end
+#     return W
+# end
 """
     inv(B::BlockDiagonal)
 
@@ -186,28 +187,29 @@ function LinearAlgebra.:\(B::BlockDiagonal, x::AbstractVecOrMat)
     return y
 end
 
+# For square blocks some efficient implementations exist
 LinearAlgebra.logdet(B::BlockDiagonal) = B.is_block_square ? sum(logdet, blocks(B)) : error("Not all blocks are square")
 LinearAlgebra.det(B::BlockDiagonal) = B.is_block_square ? prod(det, blocks(B)) : error("Not all blocks are square")
 function LinearAlgebra.tr(B::BlockDiagonal)
+    # Check if block is square. If not error. If all blocks are square sum over traces. Otherwise just sum diagonal entries
     if _is_square(B)
-        B.is_block_square ? sum(tr, blocks(B)) : sum(diag(B))
+        return B.is_block_square ? sum(tr, blocks(B)) : sum(diag(B))
     else
         throw(DimensionMismatch("matrix is not square: dimensions are $(size(B))"))
     end
 end
 
+# Defining transposes and adjoints by applythem it to all blocks and switching the block indices
 Base.transpose(B::BlockDiagonal) = BlockDiagonal([transpose(block) for block in blocks(B)], _extract_transpose_block_information(B)...)
 Base.adjoint(B::BlockDiagonal) = BlockDiagonal([transpose(conj(block)) for block in blocks(B)], _extract_transpose_block_information(B)...)
 
-
+# Defining some arithmetic operations of scalars
 Base.:*(scalar::Number, B::BlockDiagonal) = BlockDiagonal(scalar * blocks(B), _extract_block_information(B)...)
 Base.:*(B::BlockDiagonal,scalar::Number)  = BlockDiagonal(scalar * blocks(B), _extract_block_information(B)...)
-
-
 Base.:-(B::BlockDiagonal) = BlockDiagonal(-blocks(B), _extract_block_information(B)...)
 Base.:+(B::BlockDiagonal) = BlockDiagonal(blocks(B), _extract_block_information(B)...)
 
-
+# Defining arithmetic operations with other `BlockDiagonal` matrices
 function Base.:-(B::BlockDiagonal, C::BlockDiagonal)
     if !((B.block_row_indices == C.block_row_indices) && (B.block_col_indices == C.block_col_indices))
         throw(DimensionMismatch("The block sizes of A and B are not compatible"))
@@ -231,8 +233,6 @@ function Base.:*(B::BlockDiagonal,C::BlockDiagonal)
     is_block_square = all(block -> _is_square(block), W)
     return BlockDiagonal(W,B.block_row_indices, C.block_col_indices, is_block_square)
 end
-
-
 function LinearAlgebra.:\(B::BlockDiagonal, C::BlockDiagonal)
     if !B.is_block_square
         throw(DimensionMismatch("Not all blocks are square. Use a sparse format instead i.e. sparse(B)."))
@@ -252,7 +252,7 @@ function LinearAlgebra.:\(B::BlockDiagonal, C::BlockDiagonal)
 end
 
 ## Functions
-# Idea to include matrix functions?
+# Should we include matrix functions? (I do not really know if this is best approach or not. Seems slow.)
 # for func in (:log, :sqrt, :sin, :tan, :cos, :sinh, :tanh)
 #     @eval begin
 #         function (Base.$func)(B::BlockDiagonal)
